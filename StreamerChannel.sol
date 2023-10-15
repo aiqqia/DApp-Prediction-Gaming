@@ -57,4 +57,15 @@ contract StreamerChannel {
         viewerTokens[viewer] -= amount;
     }
 
+    function isStreamerOrMods(address checkAddress) public view returns(bool) {
+        uint256 count = 0;
+        for(uint256 i = 0; i < moderators.length; i++) {
+            if(checkAddress == moderators[i])
+                count++;
+        }
+        if(checkAddress == streamer || count > 0)
+            return true;
+        else 
+            return false;
+    }
 }
