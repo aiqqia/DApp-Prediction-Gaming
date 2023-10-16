@@ -13,11 +13,11 @@ contract PredictionSystem {
     address[] currentParticipants;
     uint256 currentOptions;
 
-    /*
+    
     mapping(uint256 => mapping(uint256 => uint256)) totalTokensPerOption;
     mapping(uint256 => mapping(address => uint256)) viewerTokensOnOption;
     mapping(uint256 => mapping(address => uint256)) chosenOption; 
-    */
+    
 
     // Events
     event NewPrediction(address _currentPrediction);
@@ -47,7 +47,7 @@ contract PredictionSystem {
         _;
     }
 
-    /*
+    
     // Default 0 unselected
     modifier validOption(uint256 selectedOption) {
         require(selectedOption <= currentOptions, "Invalid option selected.");
@@ -58,7 +58,7 @@ contract PredictionSystem {
     modifier validPredictionAmount(uint256 predictionAmount) {
         require(predictionAmount > 0, "Prediction amount must be greater than 0");
         // To add check for msg.sender to have sufficient tokens
-        require(predictionAmount <= streamerChannelContract.getViewerTokens([tx.origin]), "Prediction amount more than tokens possessed.")
+        require(predictionAmount <= streamerChannelContract.getViewerTokens([tx.origin]), "Prediction amount more than tokens possessed.");
         _;
     }
 
@@ -66,7 +66,7 @@ contract PredictionSystem {
         require(chosenOption[numPredictions][tx.origin] == 0, "User has already made a prediction for this session.");
         _;
     }
-    */
+    
 
     // Functions
     constructor(address _streamerChannelContract, uint256 _closedPredictionPayout) public validPayout(_closedPredictionPayout) {
@@ -144,7 +144,7 @@ contract PredictionSystem {
         */
     }
 
-    /*
+    
     // Function to be called by Prediction to make specific prediction
     function betOnOpenOption(uint256 option, uint256 tokens) public onlyCurrentPrediction predictionActive validOption(option) validPredictionAmount(tokens) {
         makePrediction(tx.origin, option, tokens);
@@ -166,5 +166,5 @@ contract PredictionSystem {
     function getTotalPredictionAmountForOption(address option) public predictionActive returns(uint256) {
         return totalTokensPerOption[numPredictions][option];
     }
-    */
+    
 }
