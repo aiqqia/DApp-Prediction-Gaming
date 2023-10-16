@@ -1,15 +1,17 @@
-pragma solidity >=0.8.2;
+pragma solidity ^0.5.0;
 
 import "./StreamerChannel.sol";
 import "./Prediction.sol";
 
 contract PredictionSystem {
-    address streamerChannelContract;
+    StreamerChannel streamerChannelContract;
+    address streamerChannelAddress;
     uint256 numPredictions;
     address[] pastPredictions;
     uint256 closedPredictionPayout;
 
-    address currentPrediction;
+    Prediction currentPrediction;
+    address currentPredictionAddress;
     address[] currentParticipants;
     uint256 currentOptions;
 
@@ -22,7 +24,7 @@ contract PredictionSystem {
     // Events
     event NewPrediction(address _currentPrediction);
     event NewClosedPredictionPayout(uint256 _amount);
-    event NewParticipant(address _participant/*, uint256 _option, uint256 _tokens*/);
+    event NewParticipant(address _participant, uint256 _option, uint256 _tokens);
 
     // Modifiers
     modifier validPayout(uint256 payout) {
@@ -31,19 +33,17 @@ contract PredictionSystem {
     }
 
     modifier predictionActive() {
-        require(currentPrediction != 0, "There is currently no active predictions.");
+        require(currentPredictionAddress != address(0), "There is currently no active predictions.");
         _;
     }
 
-    /* To uncomment when isStreamerOrMods(address) is implemented on StreamerChannel
     modifier onlyStreamerOrMods() {
         require(streamerChannelContract.isStreamerOrMods(msg.sender), "Only streamers or mods can carry out this function.");
         _;
     }
-    */
 
     modifier onlyCurrentPrediction() {
-        require(msg.sender == currentPrediction, "Only the current prediction can call this function.");
+        require(msg.sender == currentPredictionAddress, "Only the current prediction can call this function.");
         _;
     }
 
@@ -57,8 +57,7 @@ contract PredictionSystem {
 
     modifier validPredictionAmount(uint256 predictionAmount) {
         require(predictionAmount > 0, "Prediction amount must be greater than 0");
-        // To add check for msg.sender to have sufficient tokens
-        require(predictionAmount <= streamerChannelContract.getViewerTokens([tx.origin]), "Prediction amount more than tokens possessed.");
+        require(predictionAmount <= streamerChannelContract.getViewerTokens(tx.origin), "Prediction amount more than tokens possessed.");
         _;
     }
 
@@ -70,22 +69,18 @@ contract PredictionSystem {
 
     // Functions
     constructor(address _streamerChannelContract, uint256 _closedPredictionPayout) public validPayout(_closedPredictionPayout) {
-        streamerChannelContract = _streamerChannelContract;
+        streamerChannelAddress = _streamerChannelContract;
+        streamerChannelContract = StreamerChannel(_streamerChannelContract);
         closedPredictionPayout = _closedPredictionPayout;
     }
 
-    // TODO: Requires function from StreamerChannel which takes in an address and checks if streamer/mod
-    function createPrediction(uint256 options) public /*onlyStreamerOrMods*/ {
-        address newPrediction = new Prediction(options);
-        currentPrediction = newPrediction;
+    function createPrediction(uint256 options) public onlyStreamerOrMods {
+        currentPrediction = new Prediction(options, streamerChannelAddress);
+        currentPredictionAddress = address(currentPrediction);
         currentOptions = options;
     }
 
-    // TODO: Requires function from StreamerChannel which takes in an address and checks if streamer/mod
-    function unravelResults(uint256 result) public /*onlyStreamerOrMods*/ {
-        //-> data referred from currentPrediction
-        //-> Use issueTokens/spendTokens from StreamerChannel to distribute
-        /*
+    function unravelResults(uint256 result) public onlyStreamerOrMods {
         // Calculate total losses
         uint256 totalLosings = 0;
         for (uint256 i = 1; i <= currentOptions; i++) {
@@ -97,29 +92,28 @@ contract PredictionSystem {
         // Distribute losings to winners
         uint256 tokensOnWinningOption = totalTokensPerOption[numPredictions][result];
         for (uint256 i = 0; i <= currentParticipants.length; i++) {
-            address participant = currentParticipants[i]
+            address participant = currentParticipants[i];
             if (chosenOption[numPredictions][participant] == result) {
-                uint256 participantPredictionAmount = viewerTokensOnOption[numPrediction][participant];
+                uint256 participantPredictionAmount = viewerTokensOnOption[numPredictions][participant];
                 if (participantPredictionAmount == 0) {
                     streamerChannelContract.issueTokens(participant, closedPredictionPayout);
                 } else {
                     // Minimally get back amount spent, if no other participants spent
-                    uint256 winnings = participantPredictionAmount + (participantPredictionAmount * totalLosings) / tokensOnWinningOptions;
+                    uint256 winnings = participantPredictionAmount + (participantPredictionAmount * totalLosings) / tokensOnWinningOption;
                     streamerChannelContract.issueTokens(participant, winnings);
                 }
             }
         }
-        */
 
         // Clean up prediction
-        pastPredictions.push(currentPrediction);
-        currentPrediction = 0; // Make predictionActive check fail
+        pastPredictions.push(currentPredictionAddress);
+        currentPredictionAddress = address(0); // Make predictionActive check fail
         currentOptions = 0; // Make validOption fail
         delete currentParticipants;
         numPredictions += 1; // Move on to next prediction, resets totalTokensPerOption, viewerTokensOnOption and chosenOption mappings
     }
 
-    function setClosedPredictionPayout(uint256 _closedPredictionPayout) public /*onlyStreamerOrMods*/ {
+    function setClosedPredictionPayout(uint256 _closedPredictionPayout) public onlyStreamerOrMods {
         closedPredictionPayout = _closedPredictionPayout;
         emit NewClosedPredictionPayout(_closedPredictionPayout);
     }
@@ -129,11 +123,10 @@ contract PredictionSystem {
     }
 
     // Function to be called when participant makes a prediction
-    function makePrediction(address newParticipant/*, uint256 option, uint256 tokens*/) private /*haveNotPredicted*/ {
-        currentParticipants.push(newParticipant) = true;
-        emit NewParticipant(newParticipant/*, option, tokens*/);
+    function makePrediction(address newParticipant, uint256 option, uint256 tokens) private haveNotPredicted {
+        currentParticipants.push(newParticipant);
+        emit NewParticipant(newParticipant, option, tokens);
 
-        /*
         // Once prediction made, no changes allowed
         chosenOption[numPredictions][tx.origin] = option;
         if (tokens > 0) {
@@ -141,7 +134,6 @@ contract PredictionSystem {
             viewerTokensOnOption[numPredictions][tx.origin] = tokens;
             totalTokensPerOption[numPredictions][option] += tokens;
         }
-        */
     }
 
     
@@ -155,15 +147,19 @@ contract PredictionSystem {
         makePrediction(tx.origin, option, 0);
     }
 
-    function getPrediction(address viewer) public predictionActive returns(uint256) {
+    function getCurrentPrediction() public view predictionActive returns(address) {
+        return currentPredictionAddress;
+    }
+
+    function getViewerPrediction(address viewer) public view predictionActive returns(uint256) {
         return chosenOption[numPredictions][viewer];
     }
 
-    function getPredictionAmount(address viewer) public predictionActive returns(uint256) {
+    function getViewerPredictionAmount(address viewer) public view predictionActive returns(uint256) {
         return viewerTokensOnOption[numPredictions][viewer];
     }
 
-    function getTotalPredictionAmountForOption(address option) public predictionActive returns(uint256) {
+    function getTotalPredictionAmountForOption(uint256 option) public view predictionActive returns(uint256) {
         return totalTokensPerOption[numPredictions][option];
     }
     

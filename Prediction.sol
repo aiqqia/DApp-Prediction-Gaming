@@ -3,16 +3,16 @@ import "./PredictionSystem.sol";
 import "./StreamerChannel.sol";
 
 contract Prediction {
-    address predictionSystem;
-    address streamerChannelContract;
+    PredictionSystem predictionSystemContract;
+    StreamerChannel streamerChannelContract;
     bool isOpen;
     uint256 numberOfOptions;
     mapping(uint256 => string) optionName;
 
     constructor(uint256 _numberOfOptions, address streamerContractAddress) public {
         // Since this contract is meant to be created by the PredictionSystem contract, we store msg.sender as the PredictionSystem contract address
-        predictionSystem = msg.sender;
-        streamerChannelContract = streamerContractAddress;
+        predictionSystemContract = PredictionSystem(msg.sender);
+        streamerChannelContract = StreamerChannel(streamerContractAddress);
         numberOfOptions = _numberOfOptions;
         isOpen = true;
     }
@@ -31,12 +31,12 @@ contract Prediction {
 
     function betOnOpenOption(uint256 option, uint256 tokens) public {
         // To add a check for msg.sender to have sufficient tokens
-        predictionSystem.betOnOpenOption(option, tokens);
+        predictionSystemContract.betOnOpenOption(option, tokens);
     }
 
     function betOnClosedOption(uint256 option) public {
         // Betting on closed option does not require a token bet
-        predictionSystem.betOnClosedOption(option);
+        predictionSystemContract.betOnClosedOption(option);
     }
 
     function setOptionName(uint256 option, string memory name) public onlyStreamerOrMods(msg.sender) validOption(option) {
@@ -54,4 +54,3 @@ contract Prediction {
         return predictionList;
     }
 }
-
