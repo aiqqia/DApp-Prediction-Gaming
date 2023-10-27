@@ -1,1 +1,1 @@
-# DApp-Prediction-Gaming
+# DApp for Streamer Predictions
