@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.5.0;
 import "./StreamerChannel.sol"; // Import the StreamChannel interface
 
 contract InteractionSystem{
