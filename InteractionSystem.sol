@@ -1,67 +1,149 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
+import "./StreamerChannel.sol"; // Import the StreamChannel interface
 
 contract InteractionSystem{
-    address streamChannelContract;
+    StreamerChannel streamChannelContract;
     address[] donors;
      
     mapping(address => bool) public subscribers;
 
-    // map interactionCost to interactionType
-    mapping(uint256 => uint256) public interactionCosts;
+    struct InteractionType {
+        uint256 cost;
+        string description;
+    }
 
-    event InteractionRequested(address requester, uint256 interactionCost);
+    InteractionType[] public interactionCosts;
+
+    event InteractionRequested(address requester, uint256 interactionCost, string description);
     event DonorAdded(address donor);
     event SubscriberAdded(address subscriber);
+    event AllDonors(address[] donors);
 
     constructor(address streamChannelAddress) {
-        require(streamChannelAddress.streamer() == msg.sender, "Only Streamer can deploy this contract!");
-        streamChannelContract = streamChannelAddress;
+        streamChannelContract = StreamerChannel(streamChannelAddress);
+        address streamer = streamChannelContract.getStreamer();
+        require(streamer == msg.sender, "Only Streamer can deploy this contract!");
+        
+        streamChannelContract.setInteractionSystemContract(address(this));
+
+        // Initialize interaction costs
+        interactionCosts.push(InteractionType(10, "Basic Interaction"));
+        interactionCosts.push(InteractionType(20, "Enhanced Interaction"));
+        interactionCosts.push(InteractionType(30, "Premium Interaction"));
 
     }
 
-    function requestInteraction(uint256 interactionCost) public {
-        //require caller token balance >= interactionCost
-        require(streamChannelContract.getViewerTokens(msg.sender) >= interactionCost);
+    modifier onlyStreamer() {
+        require(streamChannelContract.getStreamer() == msg.sender, "Only Streamer can call this function");
+        _;
+    }
 
-        //require valid interactionCost
-        require(interactionCost[interactionCost] > 0, "Invalid interaction cost");
+    modifier donationGreaterThanZero(uint256 value) {
+        require(value > 0, "Donation cannot be 0 ether!");
+        _;
+    }
 
-        //minus interactionCost from caller token balance
+    modifier subscriberNotExists(address viewer) {
+        require(!subscribers[viewer], "Subscriber already exists");
+        _;
+    }
+
+    modifier isEnoughSubscriptionFeeProvided(uint256 value){
+        //subscription fee 1 eth
+        uint256 subscriptionFee = 1 ether;
+
+        //require msg.value >= 1 eth
+        require(msg.value >= subscriptionFee, "Subscription requires at least 1 ether!");
+        _;
+    }
+
+    modifier isEnoughTokenBalance(address viewer, uint256 interactionCost){
+        //require viewer token balance >= interactionCost
+        require(streamChannelContract.getViewerTokens(viewer) >= interactionCost, "Viewer should have enough token balance!");
+        _;
+    }
+
+    modifier isValidInteractionCost(uint256 cost) {
+        bool valid = false;
+        for (uint256 i = 0; i < interactionCosts.length; i++) {
+            if (interactionCosts[i].cost == cost) {
+                valid = true;
+                break;
+            }
+        }
+        require(valid, "Invalid interaction cost");
+        _;
+    }
+
+    function requestInteraction(uint256 interactionCost) public 
+        isEnoughTokenBalance(msg.sender, interactionCost) 
+        isValidInteractionCost(interactionCost) {
+        
+        //minus interactionCost from viewer token balance
         streamChannelContract.spendTokens(msg.sender, interactionCost);
 
-        emit InteractionRequested(msg.sender, interactionCost);
+        string memory interactionDescription;
+        for (uint256 i = 0; i < interactionCosts.length; i++) {
+            if (interactionCosts[i].cost == interactionCost) {
+                interactionDescription = interactionCosts[i].description;
+            }
+        }
+
+        emit InteractionRequested(msg.sender, interactionCost, interactionDescription);
     }
 
-    function makeDonation() public payable {
-        //require msg.value > 0 eth
-        require(msg.value > 0 ether, "Donation cannot be 0 ether!");
+    function makeDonation() public payable donationGreaterThanZero(msg.value){
+
+        address payable streamer = payable (streamChannelContract.getStreamer());
+
         //check if alrdy in donors
         for(uint256 i=0; i < donors.length; i++){
             address donor = donors[i];
             if(donor == msg.sender){
+                //transfer ether to the streamer
+                streamer.transfer(msg.value);
                 return;
             }
         }
         //add to donors
         donors.push(msg.sender);
 
+        //transfer ether to the streamer
+        streamer.transfer(msg.value);
+
         emit DonorAdded(msg.sender);
     }
 
-    function subscribe() public payable {
-        //subscription fee 1 eth
-        uint256 subscriptionFee = 1 ether;
+    function subscribe() public payable subscriberNotExists(msg.sender) isEnoughSubscriptionFeeProvided(msg.value) {
 
-        //require msg.value >= 1 eth
-        require(msg.value >= subscriptionFee, "Subscription requires at least 1 ether!");
-        //require not part of subscribers list
-        require(subscribers[msg.sender] == false, "msg.sender is already a subscriber!");
         // add to subscribers
         subscribers[msg.sender] = true;
 
+        //transfer ether to the streamer
+        address payable streamer = payable (streamChannelContract.getStreamer());
+        streamer.transfer(msg.value);
+
         emit SubscriberAdded(msg.sender);
 
+    }
+
+    // print all donors
+    function getAllDonors() public onlyStreamer {
+        emit AllDonors(donors);
+    }
+
+    function getAllInteractionTypes() public view returns (uint256[] memory costs, string[] memory descriptions) {
+        uint256 length = interactionCosts.length;
+        costs = new uint256[](length);
+        descriptions = new string[](length);
+
+        for (uint256 i = 0; i < length; i++) {
+            costs[i] = interactionCosts[i].cost;
+            descriptions[i] = interactionCosts[i].description;
+        }
+
+        return (costs, descriptions);
     }
 
 }
