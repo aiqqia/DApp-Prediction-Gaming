@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.5.0;
-
+import "./StreamerChannel.sol";
 
 contract AttendanceSystem {
+    StreamerChannel streamerChannelContract;
     uint256 attendanceAmount;
     uint256 timeLimit;
     bool allowAttending;
@@ -10,17 +11,14 @@ contract AttendanceSystem {
     address [] viewers;
 
     address owner;
-    constructor(address streamerContractAddress) {
-        // streamerChannel = streamerChannelAddr; // We'll use this when we are connecting things
-        streamerChannelContract = streamerContractAddress;
+    constructor(address streamerContractAddress) public {
+        streamerChannelContract = StreamerChannel(streamerContractAddress);
     }
 
-    // modifier streamerOnly(address addr) {
-    //     // require(addr == streamerChannel.getStreamer());
-    //     require(addr == owner, "Only streamers are allowed to startNewAttendance"); // just to check SC separately
-    //     _;
-    // }
-
+    modifier onlyStreamer(address callAddr) {
+        require(streamerChannelContract.getStreamer() == callAddr, "Only Streamer are allowed to startNewAttendance");
+        _;
+    }
     modifier  allowsAttending(uint256 callTime) {
         require(callTime < timeLimit, "Streamer has stopped streaming or the time slot has ran out");
         _;
@@ -58,7 +56,7 @@ contract AttendanceSystem {
         }
     }
 
-    function startNewAttendance(uint attendancePeriod) public streamerChannelContract.streamerOnly(msg.sender) {
+    function startNewAttendance(uint attendancePeriod) public onlyStreamer(msg.sender) {
         // Attendance period is taken in minutes, so if value is 30, it means 30 minutes
         // This function allows streamers to set the timeperiod in which people can come in and mark their attendance
         // Between that time period anyone will be able to call markMyAttendance
