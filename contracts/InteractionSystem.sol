@@ -1,5 +1,6 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.5.0;
+pragma experimental ABIEncoderV2;
 import "./StreamerChannel.sol"; // Import the StreamChannel interface
 
 contract InteractionSystem{
@@ -20,7 +21,7 @@ contract InteractionSystem{
     event SubscriberAdded(address subscriber);
     event AllDonors(address[] donors);
 
-    constructor(address streamChannelAddress) {
+    constructor(address streamChannelAddress) public {
         streamerChannelContract = StreamerChannel(streamChannelAddress);
         address streamer = streamerChannelContract.getStreamer();
         require(streamer == msg.sender, "Only Streamer can deploy this contract!");
@@ -95,14 +96,15 @@ contract InteractionSystem{
 
     function makeDonation() public payable donationGreaterThanZero(msg.value){
 
-        address payable streamer = payable (streamerChannelContract.getStreamer());
+        address streamer = streamerChannelContract.getStreamer();
+        address payable payableStreamer = address(uint160(streamer));
 
         //check if alrdy in donors
         for(uint256 i=0; i < donors.length; i++){
             address donor = donors[i];
             if(donor == msg.sender){
                 //transfer ether to the streamer
-                streamer.transfer(msg.value);
+                payableStreamer.transfer(msg.value);
                 return;
             }
         }
@@ -110,7 +112,7 @@ contract InteractionSystem{
         donors.push(msg.sender);
 
         //transfer ether to the streamer
-        streamer.transfer(msg.value);
+        payableStreamer.transfer(msg.value);
 
         emit DonorAdded(msg.sender);
     }
@@ -121,8 +123,9 @@ contract InteractionSystem{
         subscribers[msg.sender] = true;
 
         //transfer ether to the streamer
-        address payable streamer = payable (streamerChannelContract.getStreamer());
-        streamer.transfer(msg.value);
+        address streamer = streamerChannelContract.getStreamer();
+        address payable payableStreamer = address(uint160(streamer));
+        payableStreamer.transfer(msg.value);
 
         emit SubscriberAdded(msg.sender);
 
