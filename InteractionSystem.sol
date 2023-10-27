@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 import "./StreamerChannel.sol"; // Import the StreamChannel interface
 
 contract InteractionSystem{
-    StreamerChannel streamChannelContract;
+    StreamerChannel streamerChannelContract;
     address[] donors;
      
     mapping(address => bool) public subscribers;
@@ -21,11 +21,11 @@ contract InteractionSystem{
     event AllDonors(address[] donors);
 
     constructor(address streamChannelAddress) {
-        streamChannelContract = StreamerChannel(streamChannelAddress);
-        address streamer = streamChannelContract.getStreamer();
+        streamerChannelContract = StreamerChannel(streamChannelAddress);
+        address streamer = streamerChannelContract.getStreamer();
         require(streamer == msg.sender, "Only Streamer can deploy this contract!");
         
-        streamChannelContract.setInteractionSystemContract(address(this));
+        streamerChannelContract.setInteractionSystemContract(address(this));
 
         // Initialize interaction costs
         interactionCosts.push(InteractionType(10, "Basic Interaction"));
@@ -35,7 +35,7 @@ contract InteractionSystem{
     }
 
     modifier onlyStreamer() {
-        require(streamChannelContract.getStreamer() == msg.sender, "Only Streamer can call this function");
+        require(streamerChannelContract.getStreamer() == msg.sender, "Only Streamer can call this function");
         _;
     }
 
@@ -60,7 +60,7 @@ contract InteractionSystem{
 
     modifier isEnoughTokenBalance(address viewer, uint256 interactionCost){
         //require viewer token balance >= interactionCost
-        require(streamChannelContract.getViewerTokens(viewer) >= interactionCost, "Viewer should have enough token balance!");
+        require(streamerChannelContract.getViewerTokens(viewer) >= interactionCost, "Viewer should have enough token balance!");
         _;
     }
 
@@ -81,7 +81,7 @@ contract InteractionSystem{
         isValidInteractionCost(interactionCost) {
         
         //minus interactionCost from viewer token balance
-        streamChannelContract.spendTokens(msg.sender, interactionCost);
+        streamerChannelContract.spendTokens(msg.sender, interactionCost);
 
         string memory interactionDescription;
         for (uint256 i = 0; i < interactionCosts.length; i++) {
@@ -95,7 +95,7 @@ contract InteractionSystem{
 
     function makeDonation() public payable donationGreaterThanZero(msg.value){
 
-        address payable streamer = payable (streamChannelContract.getStreamer());
+        address payable streamer = payable (streamerChannelContract.getStreamer());
 
         //check if alrdy in donors
         for(uint256 i=0; i < donors.length; i++){
@@ -121,7 +121,7 @@ contract InteractionSystem{
         subscribers[msg.sender] = true;
 
         //transfer ether to the streamer
-        address payable streamer = payable (streamChannelContract.getStreamer());
+        address payable streamer = payable (streamerChannelContract.getStreamer());
         streamer.transfer(msg.value);
 
         emit SubscriberAdded(msg.sender);
