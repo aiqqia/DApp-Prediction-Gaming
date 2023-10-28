@@ -44,8 +44,7 @@ contract AttendanceSystem {
             require(viewerAttendance[msg.sender] == 0, "Attendance already marked");
         }
         attendanceAmount =  timeLimit - block.timestamp;
-        //TODO: Call issue token equivalent to the amount
-        // Actually since everything is kinda fixed, we ca
+        streamerChannelContract.issueTokens(msg.sender, attendanceAmount);
         viewerAttendance[msg.sender] = block.timestamp;
         viewers.push(msg.sender);
     }
