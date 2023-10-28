@@ -76,8 +76,13 @@ contract("PredictionSystem", function (accounts) {
     // Make sure the token count increased
     assert.ok(tokenAfterAttendance.toNumber() > 0, "Token count increased after attendance marking");
 
-    predAddr = await predSysInst.getCurrentPrediction();
-    await predSysInst.betOnOpenOption(1, 5, {from : predAddr});
+    predictionAddr = await predSysInst.getCurrentPrediction();
+    predInst = await Prediction.at(predictionAddr);
+    // console.log(tokenAfterAttendance.toNumber())
+    await predInst.betOnClosedOption(1, {from : accounts[1]});
+    await predSysInst.unravelResults(1);
+    tokenAfterPrediction = await streamerInst.getViewerTokens(accounts[1]);    
+
 
   })
 });
