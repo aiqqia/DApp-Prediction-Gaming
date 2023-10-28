@@ -10,11 +10,11 @@ const AttendanceSystem = artifacts.require("../contract/AttendanceSystem");
 
 contract("PredictionSystem", function (accounts) {
   before(async () => {
-    streamerInst = await StreamerChannel.deploy();
-    predSysInst = await PredictionSystem.deploy();
-    predictionInst = await Prediction.deploy();
-    interactionInst = await InteractionSystem.deploy();
-    attendanceInst = await AttendanceSystem.deploy();
+    streamerInst = await StreamerChannel.deployed();
+    predSysInst = await PredictionSystem.deployed();
+    predictionInst = await Prediction.deployed();
+    interactionInst = await InteractionSystem.deployed();
+    attendanceInst = await AttendanceSystem.deployed();
   });
 
   it("Test deployment", async () => {
@@ -22,6 +22,62 @@ contract("PredictionSystem", function (accounts) {
     assert.ok(predSysInst.address);
     assert.ok(predictionInst.address);
     assert.ok(interactionInst.address);
-    assert.ok(AttendanceInst.address);
+    assert.ok(attendanceInst.address);
   });
+
+  it("Test reward on marking attendance", async() => {
+
+    streamerInst.setAttendanceContract(attendanceInst.address);
+    streamerInst.setPredictionSystemContract(predSysInst.address);
+    streamerInst.setInteractionSystemContract(interactionInst.address);
+
+    tokenBeforeAttendance = await streamerInst.getViewerTokens(accounts[1]);
+    
+    // Start attendance for 30 minutes;
+    await attendanceInst.startNewAttendance(30);
+    await attendanceInst.markMyAttendance({from : accounts[1]})
+    tokenAfterAttendance = await streamerInst.getViewerTokens(accounts[1]);
+
+    assert.ok(tokenAfterAttendance.toNumber() > tokenBeforeAttendance.toNumber(), "Token count increased after attendance marking");        
+  })
+
+  it("Test make Donation", async() => {
+    streamerInst.setAttendanceContract(attendanceInst.address);
+    streamerInst.setPredictionSystemContract(predSysInst.address);
+    streamerInst.setInteractionSystemContract(interactionInst.address);
+
+    madeDonation = await interactionInst.makeDonation({from : accounts[3], value: 1000000000000000000});
+
+    truffleAssert.eventEmitted(madeDonation, "DonorAdded")
+  })
+
+  it("Test subscribing", async() => {
+    streamerInst.setAttendanceContract(attendanceInst.address);
+    streamerInst.setPredictionSystemContract(predSysInst.address);
+    streamerInst.setInteractionSystemContract(interactionInst.address);
+
+    subscribed = await interactionInst.subscribe({from : accounts[3], value: 1000000000000000000});
+
+    truffleAssert.eventEmitted(subscribed, "SubscriberAdded")
+  })
+
+
+  it("Test it as a whole", async() => {
+    streamerInst.setAttendanceContract(attendanceInst.address);
+    streamerInst.setPredictionSystemContract(predSysInst.address);
+    streamerInst.setInteractionSystemContract(interactionInst.address);
+    
+    await attendanceInst.startNewAttendance(30);
+    await predSysInst.createPrediction(3);
+
+    await attendanceInst.markMyAttendance({from : accounts[1]})
+    tokenAfterAttendance = await streamerInst.getViewerTokens(accounts[1]);
+
+    // Make sure the token count increased
+    assert.ok(tokenAfterAttendance.toNumber() > 0, "Token count increased after attendance marking");
+
+    predAddr = await predSysInst.getCurrentPrediction();
+    await predSysInst.betOnOpenOption(1, 5, {from : predAddr});
+
+  })
 });
