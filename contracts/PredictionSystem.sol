@@ -91,7 +91,7 @@ contract PredictionSystem {
 
         // Distribute losings to winners
         uint256 tokensOnWinningOption = totalTokensPerOption[numPredictions][result];
-        for (uint256 i = 0; i <= currentParticipants.length; i++) {
+        for (uint256 i = 0; i < currentParticipants.length; i++) {
             address participant = currentParticipants[i];
             if (chosenOption[numPredictions][participant] == result) {
                 uint256 participantPredictionAmount = viewerTokensOnOption[numPredictions][participant];
