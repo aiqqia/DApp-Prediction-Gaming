@@ -82,7 +82,11 @@ contract("PredictionSystem", function (accounts) {
     await predInst.betOnClosedOption(1, {from : accounts[1]});
     await predSysInst.unravelResults(1);
     tokenAfterPrediction = await streamerInst.getViewerTokens(accounts[1]);    
+    
+    assert.ok(tokenAfterPrediction.toNumber() > tokenAfterAttendance.toNumber(), "Token count increased afterPrediction");
+    
+    rqstInteraction = await interactionInst.requestInteraction(10, {from : accounts[1]});
 
-
+    truffleAssert.eventEmitted(rqstInteraction, "InteractionRequested");
   })
 });
