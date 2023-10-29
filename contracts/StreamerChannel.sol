@@ -2,7 +2,7 @@ pragma solidity ^0.5.0;
 
 contract StreamerChannel {
 
-    address public attendanceContract;
+    address public attendanceSystemContract;
     address public predictionSystemContract;
     address public interactionSystemContract;
     address private streamer;
@@ -19,7 +19,7 @@ contract StreamerChannel {
     }
 
     modifier issuingAdminOnly(){
-        require(streamer == msg.sender || attendanceContract == msg.sender || predictionSystemContract == msg.sender, "Only Admin can call this function");
+        require(streamer == msg.sender || attendanceSystemContract == msg.sender || predictionSystemContract == msg.sender, "Only Admin can call this function");
         _;
     }
 
@@ -55,7 +55,7 @@ contract StreamerChannel {
     }
 
     function setAttendanceSystemContract(address addr_ac) public streamerOnly {
-        attendanceContract = addr_ac;
+        attendanceSystemContract = addr_ac;
     }
 
     function setPredictionSystemContract(address addr_pc) public streamerOnly {
