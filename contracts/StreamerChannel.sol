@@ -2,11 +2,11 @@ pragma solidity ^0.5.0;
 
 contract StreamerChannel {
 
-    address public  attendanceContract;
+    address public attendanceContract;
     address public predictionSystemContract;
     address public interactionSystemContract;
     address private streamer;
-    address[] public moderators;
+    mapping(address => bool) private moderators;
     mapping(address => uint256) private viewerTokens;
     
     constructor() public {
@@ -28,43 +28,45 @@ contract StreamerChannel {
         _;
     }
 
-    function issueTokens(address viewer, uint256 amount) public issuingAdminOnly {
-        viewerTokens[viewer] += amount;
+    function getStreamer() public view returns(address) {
+        return streamer;
     }
 
     function getViewerTokens(address viewer) public view returns(uint256) {
         return viewerTokens[viewer];
     }
 
-    function getStreamer() public view returns(address) {
-        return streamer;
-    }
-
-    function setAttendanceContract(address addr_ac) public {
-        attendanceContract = addr_ac;
-    }
-
-    function setPredictionSystemContract(address addr_pc) public {
-        predictionSystemContract = addr_pc;
-    }
-
-    function setInteractionSystemContract(address addr_ic) public {
-        interactionSystemContract = addr_ic;
+    function issueTokens(address viewer, uint256 amount) public issuingAdminOnly {
+        viewerTokens[viewer] += amount;
     }
 
     function spendTokens(address viewer, uint256 amount) public spendingAdminOnly {
         viewerTokens[viewer] -= amount;
     }
 
+    function addModerator(address newModerator) public streamerOnly {
+        require(moderators[newModerator] == false, "The provided address already belongs to a moderator");
+        moderators[newModerator] = true;
+    }
+
+    function removeModerator(address oldModerator) public streamerOnly {
+        require(moderators[oldModerator] == true, "The provided address does not belong to a moderator");
+        moderators[oldModerator] = false;
+    }
+
+    function setAttendanceSystemContract(address addr_ac) public streamerOnly {
+        attendanceContract = addr_ac;
+    }
+
+    function setPredictionSystemContract(address addr_pc) public streamerOnly {
+        predictionSystemContract = addr_pc;
+    }
+
+    function setInteractionSystemContract(address addr_ic) public streamerOnly {
+        interactionSystemContract = addr_ic;
+    }
+
     function isStreamerOrMods(address checkAddress) public view returns(bool) {
-        uint256 count = 0;
-        for(uint256 i = 0; i < moderators.length; i++) {
-            if(checkAddress == moderators[i])
-                count++;
-        }
-        if(checkAddress == streamer || count > 0)
-            return true;
-        else 
-            return false;
+        return checkAddress == streamer || moderators[checkAddress] == true;
     }
 }
