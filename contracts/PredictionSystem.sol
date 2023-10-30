@@ -66,6 +66,10 @@ contract PredictionSystem {
         _;
     }
     
+    modifier currentPredictionClosed() {
+        require(currentPredictionAddress == address(0) || currentPrediction.isCurrentlyOpen() == false, "The current prediction is currently still open.");
+        _;
+    }
 
     // Functions
     constructor(address _streamerChannelContract, uint256 _closedPredictionPayout) public validPayout(_closedPredictionPayout) {
@@ -74,7 +78,7 @@ contract PredictionSystem {
         closedPredictionPayout = _closedPredictionPayout;
     }
 
-    function createPrediction(uint256 options) public onlyStreamerOrMods {
+    function createPrediction(uint256 options) public onlyStreamerOrMods currentPredictionClosed {
         currentPrediction = new Prediction(options, streamerChannelAddress);
         currentPredictionAddress = address(currentPrediction);
         currentOptions = options;
@@ -107,6 +111,7 @@ contract PredictionSystem {
 
         // Clean up prediction
         pastPredictions.push(currentPredictionAddress);
+        currentPrediction.closePrediction();
         currentPredictionAddress = address(0); // Make predictionActive check fail
         currentOptions = 0; // Make validOption fail
         delete currentParticipants;
