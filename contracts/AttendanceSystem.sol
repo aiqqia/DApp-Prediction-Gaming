@@ -7,7 +7,6 @@ contract AttendanceSystem {
     uint256 attendanceAmount;
     uint256 timeLimit;
     mapping (address => uint256) viewerAttendance;
-    address [] viewers;
 
     address owner;
     constructor(address streamerContractAddress) public {
