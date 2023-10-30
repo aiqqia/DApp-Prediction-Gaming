@@ -4,6 +4,7 @@ import "./StreamerChannel.sol";
 
 contract Prediction {
     PredictionSystem predictionSystemContract;
+    address predictionSystemAddress;
     StreamerChannel streamerChannelContract;
     bool isOpen;
     uint256 numberOfOptions;
@@ -11,35 +12,54 @@ contract Prediction {
 
     constructor(uint256 _numberOfOptions, address streamerContractAddress) public {
         // Since this contract is meant to be created by the PredictionSystem contract, we store msg.sender as the PredictionSystem contract address
-        predictionSystemContract = PredictionSystem(msg.sender);
+        predictionSystemAddress = msg.sender;
+        predictionSystemContract = PredictionSystem(predictionSystemAddress);
         streamerChannelContract = StreamerChannel(streamerContractAddress);
         numberOfOptions = _numberOfOptions;
         isOpen = true;
     }
 
     modifier validOption(uint256 selectedOption) {
-        require(selectedOption < numberOfOptions, "Invalid option");
-        require(selectedOption > 0);
+        require(selectedOption <= numberOfOptions, "Invalid option selected");
+        require(selectedOption > 0, "Invalid option selected");
         _;
     }
 
     //To add modifier to allow for mods/streamer only
-    modifier onlyStreamerOrMods(address _address) {
-        require(streamerChannelContract.isStreamerOrMods(_address));
+    modifier onlyStreamerOrMods() {
+        require(streamerChannelContract.isStreamerOrMods(msg.sender), "Only streamers or mods can carry out this function.");
         _;
     }
 
-    function betOnOpenOption(uint256 option, uint256 tokens) public {
+    modifier onlyPredictionSystem() {
+        require(msg.sender == address(predictionSystemContract), "Only prediction system can close this prediction directly.");
+        _;
+    }
+
+    modifier canBet() {
+        require(isOpen == true, "The prediction is currently no longer open.");
+        _;
+    }
+
+    function closePrediction() public onlyPredictionSystem {
+        isOpen = false;
+    }
+
+    function isCurrentlyOpen() public view returns(bool) {
+        return isOpen;
+    }
+
+    function betOnOpenOption(uint256 option, uint256 tokens) public canBet {
         // To add a check for msg.sender to have sufficient tokens
         predictionSystemContract.betOnOpenOption(option, tokens);
     }
 
-    function betOnClosedOption(uint256 option) public {
+    function betOnClosedOption(uint256 option) public canBet {
         // Betting on closed option does not require a token bet
         predictionSystemContract.betOnClosedOption(option);
     }
 
-    function setOptionName(uint256 option, string memory name) public onlyStreamerOrMods(msg.sender) validOption(option) {
+    function setOptionName(uint256 option, string memory name) public onlyStreamerOrMods() validOption(option) {
         optionName[option] = name;
     }
 
@@ -47,7 +67,7 @@ contract Prediction {
     function getPredictionList() public view returns(string memory) {
         string memory predictionList;
         // convert optionName to string with comma separated values
-        for (uint256 i = 0; i < numberOfOptions; i++) {
+        for (uint256 i = 1; i <= numberOfOptions; i++) {
             predictionList = string(abi.encodePacked(predictionList, optionName[i], ","));
         }
         
