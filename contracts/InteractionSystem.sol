@@ -14,9 +14,21 @@ contract InteractionSystem{
         string description;
     }
 
-    InteractionType[] public interactionCosts;
+    InteractionType[] public interactions;
+
+    struct ViewerInteractionRequest {
+        uint256 interactionTypeIndex;
+        address requester;
+    }
+    ViewerInteractionRequest[] public viewerInteractionRequestQueue;    
+
+    uint256 currentViewerQueueIndex = 0;
+    uint256 streamerCompletedQueueIndex = 0;
 
     event InteractionRequested(address requester, uint256 interactionCost, string description);
+    event InteractionAdded(uint256 interactionCost, string interactionDescription);
+    event InteractionPeek(uint256 streamerCompletedQueueIndex, uint256 InteractionType, address requester);
+    event InteractionPop(uint256 InteractionType, address requester);
     event DonorAdded(address donor);
     event SubscriberAdded(address subscriber);
     event AllDonors(address[] donors);
@@ -27,11 +39,6 @@ contract InteractionSystem{
         require(streamer == msg.sender, "Only Streamer can deploy this contract!");
         
         streamerChannelContract.setInteractionSystemContract(address(this));
-
-        // Initialize interaction costs
-        interactionCosts.push(InteractionType(10, "Basic Interaction"));
-        interactionCosts.push(InteractionType(20, "Enhanced Interaction"));
-        interactionCosts.push(InteractionType(30, "Premium Interaction"));
 
     }
 
@@ -59,37 +66,37 @@ contract InteractionSystem{
         _;
     }
 
-    modifier isEnoughTokenBalance(address viewer, uint256 interactionCost){
+    modifier isEnoughTokenBalance(address viewer, uint256 interactionTypeIndex){
         //require viewer token balance >= interactionCost
-        require(streamerChannelContract.getViewerTokens(viewer) >= interactionCost, "Viewer should have enough token balance!");
+        require(streamerChannelContract.getViewerTokens(viewer) >= interactions[interactionTypeIndex].cost, "Viewer should have enough token balance!");
         _;
     }
 
-    modifier isValidInteractionCost(uint256 cost) {
-        bool valid = false;
-        for (uint256 i = 0; i < interactionCosts.length; i++) {
-            if (interactionCosts[i].cost == cost) {
-                valid = true;
-                break;
-            }
-        }
-        require(valid, "Invalid interaction cost");
+    modifier isInteractionQueueEmpty(){
+        require(currentViewerQueueIndex != streamerCompletedQueueIndex, "Interaction queue is empty currently...");
         _;
     }
 
-    function requestInteraction(uint256 interactionCost) public 
-        isEnoughTokenBalance(msg.sender, interactionCost) 
-        isValidInteractionCost(interactionCost) {
+    modifier isValidInteractionType(uint256 interactionTypeIndex) {
+        require(interactionTypeIndex >= 0 && interactionTypeIndex < interactions.length, "Invalid interaction type");
+        _;
+    }
+
+    function requestInteraction(uint256 interactionTypeIndex) public 
+        isValidInteractionType(interactionTypeIndex)
+        isEnoughTokenBalance(msg.sender, interactionTypeIndex) {
         
         //minus interactionCost from viewer token balance
+        uint256 interactionCost = interactions[interactionTypeIndex].cost;
         streamerChannelContract.spendTokens(msg.sender, interactionCost);
 
-        string memory interactionDescription;
-        for (uint256 i = 0; i < interactionCosts.length; i++) {
-            if (interactionCosts[i].cost == interactionCost) {
-                interactionDescription = interactionCosts[i].description;
-            }
-        }
+        string memory interactionDescription = interactions[interactionTypeIndex].description;
+        
+        // add viewer request to queue
+        viewerInteractionRequestQueue.push(ViewerInteractionRequest(interactionTypeIndex, msg.sender));
+
+        //update viewer queue index
+        currentViewerQueueIndex += 1;
 
         emit InteractionRequested(msg.sender, interactionCost, interactionDescription);
     }
@@ -131,19 +138,49 @@ contract InteractionSystem{
 
     }
 
+    // function to allow only streamers to add types of interaction available
+    function addInteraction(uint256 cost, string memory description) public onlyStreamer{
+        interactions.push(InteractionType(cost, description));
+        emit InteractionAdded(cost, description);
+    }
+
+    // for streamer to view the next viewer's request in interaction queue
+    function peekNextInteraction() public onlyStreamer isInteractionQueueEmpty 
+        returns(uint256, string memory, address)    
+    {
+        uint256 interactionTypeIndex = viewerInteractionRequestQueue[streamerCompletedQueueIndex].interactionTypeIndex;
+        address requester = viewerInteractionRequestQueue[streamerCompletedQueueIndex].requester;
+        emit InteractionPeek(streamerCompletedQueueIndex, interactionTypeIndex, requester);
+        return (interactionTypeIndex, interactions[interactionTypeIndex].description, requester);
+    }
+
+    // for streamer to proceed to the next request in the queue
+    function popNextInteraction() public onlyStreamer isInteractionQueueEmpty{
+        uint256 interactionTypeIndex = viewerInteractionRequestQueue[streamerCompletedQueueIndex].interactionTypeIndex;
+        address requester = viewerInteractionRequestQueue[streamerCompletedQueueIndex].requester;
+        streamerCompletedQueueIndex += 1;
+
+        emit InteractionPop(interactionTypeIndex, requester);
+    }
+
+    function getStreamerCompletedQueueIndex() public view returns (uint256) {
+        return streamerCompletedQueueIndex;
+    }
+
     // print all donors
-    function getAllDonors() public onlyStreamer {
+    function getAllDonors() public {
         emit AllDonors(donors);
     }
 
+    // print all interaction types available for viewers
     function getAllInteractionTypes() public view returns (uint256[] memory costs, string[] memory descriptions) {
-        uint256 length = interactionCosts.length;
+        uint256 length = interactions.length;
         costs = new uint256[](length);
         descriptions = new string[](length);
 
         for (uint256 i = 0; i < length; i++) {
-            costs[i] = interactionCosts[i].cost;
-            descriptions[i] = interactionCosts[i].description;
+            costs[i] = interactions[i].cost;
+            descriptions[i] = interactions[i].description;
         }
 
         return (costs, descriptions);
