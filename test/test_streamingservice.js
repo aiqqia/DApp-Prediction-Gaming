@@ -27,7 +27,7 @@ contract("PredictionSystem", function (accounts) {
 
   it("Test reward on marking attendance", async() => {
 
-    streamerInst.setAttendanceContract(attendanceInst.address);
+    streamerInst.setAttendanceSystemContract(attendanceInst.address);
     streamerInst.setPredictionSystemContract(predSysInst.address);
     streamerInst.setInteractionSystemContract(interactionInst.address);
 
@@ -42,36 +42,42 @@ contract("PredictionSystem", function (accounts) {
   })
 
   it("Test make Donation", async() => {
-    streamerInst.setAttendanceContract(attendanceInst.address);
+    streamerInst.setAttendanceSystemContract(attendanceInst.address);
     streamerInst.setPredictionSystemContract(predSysInst.address);
     streamerInst.setInteractionSystemContract(interactionInst.address);
 
-    madeDonation = await interactionInst.makeDonation({from : accounts[3], value: 1000000000000000000});
+    madeDonation = await interactionInst.makeDonation({from : accounts[5], value: 1000000000000000000});
 
     truffleAssert.eventEmitted(madeDonation, "DonorAdded")
+
+    checkIsDonor = await interactionInst.isDonor(accounts[5]);
+    assert.ok(checkIsDonor, "Donor is added");
   })
 
   it("Test subscribing", async() => {
-    streamerInst.setAttendanceContract(attendanceInst.address);
+    streamerInst.setAttendanceSystemContract(attendanceInst.address);
     streamerInst.setPredictionSystemContract(predSysInst.address);
     streamerInst.setInteractionSystemContract(interactionInst.address);
 
-    subscribed = await interactionInst.subscribe({from : accounts[3], value: 1000000000000000000});
+    subscribed = await interactionInst.subscribe({from : accounts[5], value: 1000000000000000000});
 
-    truffleAssert.eventEmitted(subscribed, "SubscriberAdded")
+    truffleAssert.eventEmitted(subscribed, "SubscriberAdded");
+
+    checkIsSubscriber = await interactionInst.isDonor(accounts[5]);
+    assert.ok(checkIsSubscriber, "Donor is added");
   })
 
 
   it("Test it as a whole", async() => {
-    streamerInst.setAttendanceContract(attendanceInst.address);
+    streamerInst.setAttendanceSystemContract(attendanceInst.address);
     streamerInst.setPredictionSystemContract(predSysInst.address);
     streamerInst.setInteractionSystemContract(interactionInst.address);
     
     await attendanceInst.startNewAttendance(30);
     await predSysInst.createPrediction(3);
 
-    await attendanceInst.markMyAttendance({from : accounts[1]})
-    tokenAfterAttendance = await streamerInst.getViewerTokens(accounts[1]);
+    await attendanceInst.markMyAttendance({from : accounts[5]})
+    tokenAfterAttendance = await streamerInst.getViewerTokens(accounts[5]);
 
     // Make sure the token count increased
     assert.ok(tokenAfterAttendance.toNumber() > 0, "Token count increased after attendance marking");
@@ -79,13 +85,13 @@ contract("PredictionSystem", function (accounts) {
     predictionAddr = await predSysInst.getCurrentPrediction();
     predInst = await Prediction.at(predictionAddr);
     // console.log(tokenAfterAttendance.toNumber())
-    await predInst.betOnClosedOption(1, {from : accounts[1]});
+    await predInst.betOnClosedOption(1, {from : accounts[5]});
     await predSysInst.unravelResults(1);
-    tokenAfterPrediction = await streamerInst.getViewerTokens(accounts[1]);    
+    tokenAfterPrediction = await streamerInst.getViewerTokens(accounts[5]);    
     
     assert.ok(tokenAfterPrediction.toNumber() > tokenAfterAttendance.toNumber(), "Token count increased afterPrediction");
-    
-    rqstInteraction = await interactionInst.requestInteraction(10, {from : accounts[1]});
+    await interactionInst.addNewInteraction(10, "give a shouout to ur name");
+    rqstInteraction = await interactionInst.requestInteraction(0, {from : accounts[5]});
 
     truffleAssert.eventEmitted(rqstInteraction, "InteractionRequested");
   })
