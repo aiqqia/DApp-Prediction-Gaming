@@ -44,7 +44,7 @@ contract InteractionSystem{
     }
 
     modifier donationGreaterThanZero(uint256 value) {
-        require(value > 0, "Donation cannot be 0 ether!");
+        require(value > 0, "Donation cannot be 0 Wei!");
         _;
     }
 
