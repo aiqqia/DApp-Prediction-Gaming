@@ -78,8 +78,8 @@ contract PredictionSystem {
         closedPredictionPayout = _closedPredictionPayout;
     }
 
-    function createPrediction(uint256 options) public onlyStreamerOrMods currentPredictionClosed {
-        currentPrediction = new Prediction(options, streamerChannelAddress);
+    function createPrediction(string memory title, uint256 options) public onlyStreamerOrMods currentPredictionClosed {
+        currentPrediction = new Prediction(title, options, streamerChannelAddress);
         currentPredictionAddress = address(currentPrediction);
         currentOptions = options;
     }
