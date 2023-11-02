@@ -74,7 +74,7 @@ contract("PredictionSystem", function (accounts) {
     streamerInst.setInteractionSystemContract(interactionInst.address);
     
     await attendanceInst.startNewAttendance(30);
-    await predSysInst.createPrediction(3);
+    await predSysInst.createPrediction("TestPrediction", 3);
 
     await attendanceInst.markMyAttendance({from : accounts[5]})
     tokenAfterAttendance = await streamerInst.getViewerTokens(accounts[5]);
